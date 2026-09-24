@@ -1,0 +1,50 @@
+# Render.com Blueprint — deploys the full stack (Postgres + backend + frontend)
+# from this repo in one pass. In the Render dashboard: New > Blueprint > select
+# this repo. Render reads this file and provisions everything below.
+#
+# After the first deploy, update CORS_ORIGIN (backend) and VITE_API_URL
+# (frontend) to each other's actual *.onrender.com URLs if they differ from
+# the defaults implied by the service names, then trigger a manual redeploy
+# of both services so the new values take effect.
+#
+# See https://render.com/docs/blueprint-spec for the full schema.
+
+databases:
+  - name: oms-db
+    plan: free
+    databaseName: oms_db
+    user: oms_user
+
+services:
+  - type: web
+    name: oms-backend
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /api/docs
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: DATABASE_URL
+        fromDatabase:
+          name: oms-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 1d
+      - key: CORS_ORIGIN
+        value: https://oms-frontend.onrender.com
+
+  - type: web
+    name: oms-frontend
+    runtime: docker
+    plan: free
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    envVars:
+      - key: VITE_API_URL
+        value: https://oms-backend.onrender.com/api

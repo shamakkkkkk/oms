@@ -1,0 +1,74 @@
+# Order Management System — full local stack.
+#
+# Usage:
+#   docker compose up --build -d
+#
+# That's it — no manual migration or seed step. On startup, the backend
+# container automatically syncs the database schema (prisma db push) and
+# seeds demo data (admin user, a sample customer, two sample products).
+# Give it ~15-30s on first run, then open:
+#   Frontend:     http://localhost:5173
+#   API:          http://localhost:3000/api
+#   Swagger docs: http://localhost:3000/api/docs
+#
+# Demo login: admin@oms.local / Admin123!
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: oms_user
+      POSTGRES_PASSWORD: oms_password
+      POSTGRES_DB: oms_db
+    # No host port published on purpose: the backend reaches Postgres over
+    # the internal docker network at db:5432, and never needing a host port
+    # means this service can never hit a "port already allocated" conflict.
+    # If you want to connect a GUI client (TablePlus, DBeaver, psql) from
+    # your host, temporarily add `ports: ["5433:5432"]` here, or run:
+    #   docker compose exec db psql -U oms_user -d oms_db
+    volumes:
+      - oms_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U oms_user -d oms_db']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://oms_user:oms_password@db:5432/oms_db?schema=public
+      JWT_SECRET: change-this-to-a-long-random-string-in-production
+      JWT_EXPIRES_IN: 1d
+      CORS_ORIGIN: http://localhost:5173
+    ports:
+      - '3000:3000'
+    healthcheck:
+      test: ['CMD', 'wget', '--spider', '-q', 'http://localhost:3000/api/docs']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:3000/api
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - '5173:80'
+
+volumes:
+  oms_db_data:
