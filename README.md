@@ -6,6 +6,8 @@ through a controlled lifecycle (`PENDING → PAID → SHIPPED → DELIVERED`, wi
 cancellation before shipment). Built in TypeScript across the stack to
 demonstrate production backend and full-stack engineering practices.
 
+**Live Demo:** [https://oms-frontend-1ftp.onrender.com](https://oms-frontend-1ftp.onrender.com)
+
 **Stack:** NestJS · Prisma · PostgreSQL · React · Vite · Docker
 
 ---
